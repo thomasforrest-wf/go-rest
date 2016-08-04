@@ -110,6 +110,8 @@ func TestDecodePayloadSliceHappyPath(t *testing.T) {
 	assert.Nil(err)
 }
 
+// Ensures that TestDecodePayloadSliceHappyPathNumber returns a decoded map with
+// json.Numbers for JSON payloads
 func TestDecodePayloadSliceHappyPathNumber(t *testing.T) {
 	assert := assert.New(t)
 	body := `[{"foo": "bar", "baz": 2}, {"bar": "foo", "baz": 3}]`
