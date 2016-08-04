@@ -18,6 +18,7 @@ package rest
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestDecodePayloadEmpty(t *testing.T) {
 	assert := assert.New(t)
 	payload := bytes.NewBufferString("")
 
-	decoded, err := decodePayload(payload.Bytes())
+	decoded, err := decodePayload(payload.Bytes(), false)
 
 	assert.Equal(Payload{}, decoded)
 	assert.Nil(err)
@@ -40,7 +41,7 @@ func TestDecodePayloadBadJSON(t *testing.T) {
 	body := `{"foo": "bar", "baz": 1`
 	payload := bytes.NewBufferString(body)
 
-	decoded, err := decodePayload(payload.Bytes())
+	decoded, err := decodePayload(payload.Bytes(), false)
 
 	assert.Nil(decoded)
 	assert.NotNil(err)
@@ -52,9 +53,25 @@ func TestDecodePayloadHappyPath(t *testing.T) {
 	body := `{"foo": "bar", "baz": 1}`
 	payload := bytes.NewBufferString(body)
 
-	decoded, err := decodePayload(payload.Bytes())
+	decoded, err := decodePayload(payload.Bytes(), false)
 
 	assert.Equal(Payload{"foo": "bar", "baz": float64(1)}, decoded)
+	assert.Nil(err)
+}
+
+// Ensures that decodePayload returns a decoded map with json.Numbers for JSON payloads
+func TestDecodePayloadHappyPathNumber(t *testing.T) {
+	assert := assert.New(t)
+	body := `{"foo": "bar", "baz": 1}`
+	payload := bytes.NewBufferString(body)
+
+	decoded, err := decodePayload(payload.Bytes(), true)
+
+	var mockNumber json.Number
+
+	mockNumber = "1"
+
+	assert.Equal(Payload{"foo": "bar", "baz": mockNumber}, decoded)
 	assert.Nil(err)
 }
 
@@ -63,7 +80,7 @@ func TestDecodePayloadSliceEmpty(t *testing.T) {
 	assert := assert.New(t)
 	payload := bytes.NewBufferString("")
 
-	decoded, err := decodePayloadSlice(payload.Bytes())
+	decoded, err := decodePayloadSlice(payload.Bytes(), false)
 
 	assert.Equal([]Payload{}, decoded)
 	assert.Nil(err)
@@ -75,7 +92,7 @@ func TestDecodePayloadSliceBadJSON(t *testing.T) {
 	body := `[{"foo": "bar", "baz": 1`
 	payload := bytes.NewBufferString(body)
 
-	decoded, err := decodePayloadSlice(payload.Bytes())
+	decoded, err := decodePayloadSlice(payload.Bytes(), false)
 
 	assert.Nil(decoded)
 	assert.NotNil(err)
@@ -87,8 +104,29 @@ func TestDecodePayloadSliceHappyPath(t *testing.T) {
 	body := `[{"foo": "bar", "baz": 1}]`
 	payload := bytes.NewBufferString(body)
 
-	decoded, err := decodePayloadSlice(payload.Bytes())
+	decoded, err := decodePayloadSlice(payload.Bytes(), false)
 
 	assert.Equal([]Payload{Payload{"foo": "bar", "baz": float64(1)}}, decoded)
+	assert.Nil(err)
+}
+
+func TestDecodePayloadSliceHappyPathNumber(t *testing.T) {
+	assert := assert.New(t)
+	body := `[{"foo": "bar", "baz": 2}, {"bar": "foo", "baz": 3}]`
+	payload := bytes.NewBufferString(body)
+
+	decoded, err := decodePayloadSlice(payload.Bytes(), true)
+
+	var mockNumber1 json.Number
+	mockNumber1 = "2"
+	var mockNumber2 json.Number
+	mockNumber2 = "3"
+
+	slicePayload := []Payload{
+		Payload{"foo": "bar", "baz": mockNumber1},
+		Payload{"bar": "foo", "baz": mockNumber2},
+	}
+
+	assert.Equal(slicePayload, decoded)
 	assert.Nil(err)
 }

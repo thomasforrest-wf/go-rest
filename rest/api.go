@@ -69,6 +69,7 @@ type Configuration struct {
 	Logger        StdLogger
 	GenerateDocs  bool
 	DocsDirectory string
+	UseJSONNumber bool
 }
 
 // Debugf prints the formatted string to the Configuration Logger if Debug is enabled.

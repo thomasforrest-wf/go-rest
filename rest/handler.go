@@ -17,6 +17,7 @@ limitations under the License.
 package rest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -141,7 +142,7 @@ func (h requestHandler) handleCreate(handler ResourceHandler) http.Handler {
 		version := ctx.Version()
 		rules := handler.Rules()
 
-		data, err := decodePayload(ctx.Body().Bytes())
+		data, err := decodePayload(ctx.Body().Bytes(), h.API.Configuration().UseJSONNumber)
 		if err != nil {
 			// Payload decoding failed.
 			ctx = ctx.setError(BadRequest(err.Error()))
@@ -236,10 +237,10 @@ func (h requestHandler) handleUpdateList(handler ResourceHandler) http.Handler {
 		payloadStr := ctx.Body().Bytes()
 		var data []Payload
 		var err error
-		data, err = decodePayloadSlice(payloadStr)
+		data, err = decodePayloadSlice(payloadStr, h.API.Configuration().UseJSONNumber)
 		if err != nil {
 			var p Payload
-			p, err = decodePayload(payloadStr)
+			p, err = decodePayload(payloadStr, h.API.Configuration().UseJSONNumber)
 			data = []Payload{p}
 		}
 
@@ -282,7 +283,7 @@ func (h requestHandler) handleUpdate(handler ResourceHandler) http.Handler {
 		version := ctx.Version()
 		rules := handler.Rules()
 
-		data, err := decodePayload(ctx.Body().Bytes())
+		data, err := decodePayload(ctx.Body().Bytes(), h.API.Configuration().UseJSONNumber)
 		if err != nil {
 			// Payload decoding failed.
 			ctx = ctx.setError(BadRequest(err.Error()))
@@ -366,34 +367,55 @@ func sendResponse(w http.ResponseWriter, r response, serializer ResponseSerializ
 	w.Write(response)
 }
 
-// decodePayload unmarshals the JSON payload and returns the resulting map. If the
+// decodePayload decodes the JSON payload with the option to
+// cast all numbers to json.Number and returns the resulting map. If the
 // content is empty, an empty map is returned. If decoding fails, nil is returned
 // with an error.
-func decodePayload(payload []byte) (Payload, error) {
+func decodePayload(payload []byte, UseJSONNumber bool) (Payload, error) {
 	if len(payload) == 0 {
 		return map[string]interface{}{}, nil
 	}
 
 	var data Payload
-	if err := json.Unmarshal(payload, &data); err != nil {
+
+	decoder := newDecoder(payload, UseJSONNumber)
+
+	if err := decoder.Decode(&data); err != nil {
 		return nil, err
 	}
 
 	return data, nil
 }
 
-// decodePayloadSlice unmarshals the JSON payload and returns the resulting slice.
+// decodePayload decodes the JSON payload with the option to
+// cast all numbers to json.Numbers and returns the resulting slice.
 // If the content is empty, an empty list is returned. If decoding fails, nil is
 // returned with an error.
-func decodePayloadSlice(payload []byte) ([]Payload, error) {
+func decodePayloadSlice(payload []byte, UseJSONNumber bool) ([]Payload, error) {
 	if len(payload) == 0 {
 		return []Payload{}, nil
 	}
 
 	var data []Payload
-	if err := json.Unmarshal(payload, &data); err != nil {
+
+	decoder := newDecoder(payload, UseJSONNumber)
+
+	if err := decoder.Decode(&data); err != nil {
 		return nil, err
 	}
 
 	return data, nil
+}
+
+// newDecoder returns a *json.Decode with a payload of []byte. It has an
+// option to use the Number interface for decoding numbers versus casting everything
+// to float64
+func newDecoder(payload []byte, UseJSONNumber bool) *json.Decoder {
+
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+
+	if UseJSONNumber {
+		decoder.UseNumber()
+	}
+	return decoder
 }
